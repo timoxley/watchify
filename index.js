@@ -64,56 +64,54 @@ function watchify (b, opts) {
     
     b.on('transform', function (tr, mfile) {
         tr.on('file', function (file) {
-            watchDepFile(mfile, file);
+          fs.realpath(mfile, function(err, mfileRealPath) {
+            if (err) return
+            fs.realpath(file, function(err, fileRealPath) {
+              if (err) return
+              watchDepFile(mfileRealPath, fileRealPath);
+            })
+          })
         });
     });
 
-    function watchFile (file) {
-      fs.lstat(file, function(err, stats) {
-          if (err || stats.isDirectory()) return;
-          watchFile_(file);
+    function watchFile(path) {
+      fs.lstat(path, function(err, stats) {
+        if (err || stats.isDirectory()) return;
+        fs.realpath(path, function(err, realPath) {
+          if (err) return
+          watchFile_(realPath)
+        })
       })
     }
 
     function watchFile_ (file) {
-      fs.realpath(file, function(err, realfile) {
-        if (err) return;
-        if (!fwatchers[realfile]) fwatchers[realfile] = [];
-        if (!fwatcherFiles[realfile]) fwatcherFiles[realfile] = [];
-        if (fwatcherFiles[realfile].indexOf(realfile) >= 0) return;
+        if (!fwatchers[file]) fwatchers[file] = [];
+        if (!fwatcherFiles[file]) fwatcherFiles[file] = [];
+        if (fwatcherFiles[file].indexOf(file) >= 0) return;
         
-        var w = chokidar.watch(realfile, {persistent: true});
+        var w = chokidar.watch(file, {persistent: true});
         w.setMaxListeners(0);
         w.on('error', b.emit.bind(b, 'error'));
         w.on('change', function () {
-            invalidate(realfile);
             invalidate(file);
         });
-        fwatchers[realfile].push(w);
-        fwatcherFiles[realfile].push(realfile);
-      });
+        fwatchers[file].push(w);
+        fwatcherFiles[file].push(file);
     }
     
     function watchDepFile(mfile, file) {
-        fs.realpath(file, function(err, realmfile) {
-            if (err) return;
-            fs.realpath(file, function(err, realfile) {
-                if (err) return;
-                if (!fwatchers[realmfile]) fwatchers[realmfile] = [];
-                if (!fwatcherFiles[realmfile]) fwatcherFiles[realmfile] = [];
-                if (fwatcherFiles[realmfile].indexOf(realfile) >= 0) return;
+        if (!fwatchers[mfile]) fwatchers[mfile] = [];
+        if (!fwatcherFiles[mfile]) fwatcherFiles[mfile] = [];
+        if (fwatcherFiles[mfile].indexOf(file) >= 0) return;
 
-                var w = chokidar.watch(realfile, {persistent: true});
-                w.setMaxListeners(0);
-                w.on('error', b.emit.bind(b, 'error'));
-                w.on('change', function () {
-                    invalidate(realmfile);
-                    invalidate(mfile);
-                });
-                fwatchers[realmfile].push(w);
-                fwatcherFiles[realmfile].push(realfile);
-            })
-        })
+        var w = chokidar.watch(file, {persistent: true});
+        w.setMaxListeners(0);
+        w.on('error', b.emit.bind(b, 'error'));
+        w.on('change', function () {
+            invalidate(mfile);
+        });
+        fwatchers[mfile].push(w);
+        fwatcherFiles[mfile].push(file);
     }
     
     function invalidate (id) {
